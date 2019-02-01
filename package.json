@@ -1,19 +1,18 @@
 {
-  "name": "update-notifier",
-  "version": "2.5.0",
+  "name": "update-notifier-repos",
+  "version": "1.0.0",
   "description": "Update notifications for your CLI app",
   "license": "BSD-2-Clause",
-  "repository": "yeoman/update-notifier",
+  "repository": "mmoehrlein/update-notifier-repos",
   "author": {
-    "name": "Sindre Sorhus",
-    "email": "sindresorhus@gmail.com",
-    "url": "https://sindresorhus.com"
+    "name": "Michael Moehrlein",
+    "email": "michael@moehrlein.io"
   },
   "engines": {
-    "node": ">=4"
+    "node": ">=8"
   },
   "scripts": {
-    "test": "xo && ava --timeout=20s"
+    "test": "ava --timeout=20s"
   },
   "files": [
     "index.js",
@@ -21,6 +20,8 @@
   ],
   "keywords": [
     "npm",
+    "gitlab",
+    "gitlab tag",
     "update",
     "updater",
     "notify",
@@ -36,6 +37,8 @@
     "boxen": "^1.2.1",
     "chalk": "^2.0.1",
     "configstore": "^3.0.0",
+    "extend": "^3.0.2",
+    "gitlab": "^4.3.0",
     "import-lazy": "^2.1.0",
     "is-ci": "^1.0.10",
     "is-installed-globally": "^0.1.0",

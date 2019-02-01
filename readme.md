@@ -1,17 +1,26 @@
 # update-notifier [![Build Status](https://travis-ci.org/yeoman/update-notifier.svg?branch=master)](https://travis-ci.org/yeoman/update-notifier)
 
-> Update notifications for your CLI app
+> Update notifications for your CLI app. Supports git repos without a npm repository.
 
 ![](screenshot.png)
 
 Inform users of your package of updates in a non-intrusive way.
 
+
+**This is a fork which implements support for pretty much every type of repository that supports tags/versions (e.g. npm, GitHub, GitLab).\
+This readme only shows parts of [update-notifier][un] documentation.
+The package has all the functionality that [update-notifier][un] has as of Feburary 1, 2019 so please also consult the original docs for Information**
+
+## notes for doc
+man kann mit { repoChecks:{repo:repoLatest}} auch eigene checks übergeben. oder die vorhandenen (npm und gitlab) überschreiben.
+
+
 #### Contents
 
 - [Install](#install)
 - [Usage](#usage)
-- [How](#how)
 - [API](#api)
+- [Package-specific options](#_OPTIONS SPECIFIC TO THIS PACKAGE_)
 - [About](#about)
 - [Users](#users)
 
@@ -19,65 +28,29 @@ Inform users of your package of updates in a non-intrusive way.
 ## Install
 
 ```
-$ npm install update-notifier
+$ npm install update-notifier-repos
 ```
 
 
 ## Usage
 
-### Simple
+### Simple, Comprehensive, Standard Options and Custom Message
+see [update-notifier][un]
 
-```js
-const updateNotifier = require('update-notifier');
-const pkg = require('./package.json');
-
-updateNotifier({pkg}).notify();
-```
-
-### Comprehensive
-
-```js
-const updateNotifier = require('update-notifier');
-const pkg = require('./package.json');
-
-// Checks for available update and returns an instance
-const notifier = updateNotifier({pkg});
-
-// Notify using the built-in convenience method
-notifier.notify();
-
-// `notifier.update` contains some useful info about the update
-console.log(notifier.update);
-/*
-{
-	latest: '1.0.1',
-	current: '1.0.0',
-	type: 'patch', // Possible values: latest, major, minor, patch, prerelease, build
-	name: 'pageres'
-}
-*/
-```
-
-### Options and custom message
+### New Options
 
 ```js
 const notifier = updateNotifier({
 	pkg,
-	updateCheckInterval: 1000 * 60 * 60 * 24 * 7 // 1 week
+	repo: {
+	    type: 'npm | gitlab | github | <type declared in repoChecks>', // optional; will default to npm
+	    url: 'https://gitlab.example.com', // optional; without /api/v4; will default for npm, GitLab and GitHub
+	    auth: '<token>', // optional; if authentication is needed (e.g. private repo), oAuth: '<token>' could be used instead. 'auth' will be prioritized
+	}
 });
 
-if (notifier.update) {
-	console.log(`Update available: ${notifier.update.latest}`);
-}
+console.log(notifier.update);
 ```
-
-
-## How
-
-Whenever you initiate the update notifier and it's not within the interval threshold, it will asynchronously check with npm in the background for available updates, then persist the result. The next time the notifier is initiated, the result will be loaded into the `.update` property. This prevents any impact on your package startup performance.
-The update check is done in a unref'ed [child process](https://nodejs.org/api/child_process.html#child_process_child_process_spawn_command_args_options). This means that if you call `process.exit`, the check will still be performed in its own process.
-
-The first time the user runs your app, it will check for an update, and even if an update is available, it will wait the specified `updateCheckInterval` before notifying the user. This is done to not be annoying to the user, but might surprise you as an implementer if you're testing whether it works. Check out [`example.js`](example.js) to quickly test out `update-notifier` and see how you can test that it works in your app.
 
 
 ## API
@@ -88,6 +61,42 @@ Checks if there is an available update. Accepts options defined below. Returns a
 
 ### options
 
+Type: `Object`
+
+#### _OPTIONS SPECIFIC TO THIS PACKAGE_
+
+#### repo
+
+Type: `Object`
+
+##### type
+
+Type: `string`
+Description: A string that identifies the kind of repo. Is used to reference the function to check for latest tag/version. Standard options are npm, gitlab, github (will default to npm if not set). Custom types can be used.
+
+##### url
+
+Type: `string`
+Description: Defaults to the standard hosts if not set.
+
+##### auth or oAuth
+
+Type: `string`
+Description: Auth or OAuth token.
+
+#### repoChecks
+
+Type: `Object`
+
+##### <custom type>
+
+*Required if custom type is used for repo.type*<br>
+Type: `function`
+Return: `Promise.<string>`
+Description: Returns a promise the will resolve to the latest version/tag.
+
+
+#### _GENERAL OPTIONS_
 #### pkg
 
 Type: `Object`
@@ -161,34 +170,25 @@ Default: `{padding: 1, margin: 1, align: 'center', borderColor: 'yellow', border
 Options object that will be passed to [`boxen`](https://github.com/sindresorhus/boxen).
 
 
-### User settings
-
-Users of your module have the ability to opt-out of the update notifier by changing the `optOut` property to `true` in `~/.config/configstore/update-notifier-[your-module-name].json`. The path is available in `notifier.config.path`.
-
-Users can also opt-out by [setting the environment variable](https://github.com/sindresorhus/guides/blob/master/set-environment-variables.md) `NO_UPDATE_NOTIFIER` with any value or by using the `--no-update-notifier` flag on a per run basis.
-
-The check is also skipped on CI automatically.
-
-
 ## About
 
-The idea for this module came from the desire to apply the browser update strategy to CLI tools, where everyone is always on the latest version. We first tried automatic updating, which we discovered wasn't popular. This is the second iteration of that idea, but limited to just update notifications.
+The idea for this module came from the desire to apply [update-notifier][un] to repositories.
+I then found [update-notifier-plus][unp] which implemented this for github.
+Because I am using GitLab as well as GitHub I decided to write a package for that along the lines of [update-notifier-plus][unp].
+In the process I realized that [update-notifier-plus] was not completely up to date and i asked myself what happens in the future if I want to use this for a work project, where Bitbucket is used. 
+Therefore i also implemented the option to pass custom functions to check for latest tags or even overwrite the ones for npm, github and gitlab.
 
 
-## Users
+## Credits
 
-There are a bunch projects using it:
-
-- [npm](https://github.com/npm/npm) - Package manager for JavaScript
-- [Yeoman](http://yeoman.io) - Modern workflows for modern webapps
-- [AVA](https://ava.li) - Simple concurrent test runner
-- [XO](https://github.com/xojs/xo) - JavaScript happiness style linter
-- [Pageres](https://github.com/sindresorhus/pageres) - Capture website screenshots
-- [Node GH](http://nodegh.io) - GitHub command line tool
-
-[And 1600+ more…](https://www.npmjs.org/browse/depended/update-notifier)
+I have to give credit to obviously the original [update-notifier][un], which I forked. Also to [update-notifier-plus][unp], which I took some inspiration from.
 
 
 ## License
 
 BSD-2-Clause © Google
+
+[un]: https://www.npmjs.com/package/update-notifier
+[unp]: https://www.npmjs.com/package/update-notifier-plus
+
+

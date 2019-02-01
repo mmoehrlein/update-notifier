@@ -35,7 +35,7 @@ test.afterEach(() => {
 });
 
 test('check for update', async t => {
-	const update = await updateNotifier(generateSettings()).checkNpm();
+	const update = await updateNotifier(generateSettings()).checkLatest();
 	t.is(update.current, '0.0.2');
 });
 

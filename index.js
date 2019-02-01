@@ -8,18 +8,39 @@ const configstore = importLazy('configstore');
 const chalk = importLazy('chalk');
 const semverDiff = importLazy('semver-diff');
 const latestVersion = importLazy('latest-version');
+const latestGitlabTag = importLazy('latest-gitlab-tag');
 const isNpm = importLazy('is-npm');
 const isInstalledGlobally = importLazy('is-installed-globally');
 const boxen = importLazy('boxen');
 const xdgBasedir = importLazy('xdg-basedir');
 const isCi = importLazy('is-ci');
+const extend = importLazy('extend');
+const { Tags, Projects } = importLazy('gitlab');
+
 const ONE_DAY = 1000 * 60 * 60 * 24;
 
 class UpdateNotifier {
 	constructor(options) {
+        this.repoChecks = {
+            npm: async ()=>{
+                return await latestVersion()(this.packageName)
+            },
+            gitlab: async ()=>{
+                let options = {};
+                if(this.repoUrl) options.url = this.repoUrl;
+                if(this.repoAuth) options.token = this.repoAuth;
+                else if(this.repoOAuth) options.oauthToken = this.repoOAuth;
+
+                return await latestGitlabTag(this.packageName, options);
+            }
+        };
+
+        extend(this.repoChecks, options.repoChecks);
+
 		options = options || {};
 		this.options = options;
 		options.pkg = options.pkg || {};
+		options.repo = options.repo || {};
 
 		// Reduce pkg to the essential keys. with fallback to deprecated options
 		// TODO: Remove deprecated options at some point far into the future
@@ -32,6 +53,10 @@ class UpdateNotifier {
 			throw new Error('pkg.name and pkg.version required');
 		}
 
+		this.repoType = options.repo.type || 'npm';
+		this.repoUrl = options.repo.url;
+		this.repoAuth = options.repo.auth;
+		this.repoOAuth = options.repo.oAuth;
 		this.packageName = options.pkg.name;
 		this.packageVersion = options.pkg.version;
 		this.updateCheckInterval = typeof options.updateCheckInterval === 'number' ? options.updateCheckInterval : ONE_DAY;
@@ -67,7 +92,7 @@ class UpdateNotifier {
 	}
 	check() {
 		if (this.hasCallback) {
-			this.checkNpm()
+			this.checkLatest()
 				.then(update => this.callback(null, update))
 				.catch(err => this.callback(err));
 			return;
@@ -98,16 +123,25 @@ class UpdateNotifier {
 			stdio: 'ignore'
 		}).unref();
 	}
-	checkNpm() {
-		return latestVersion()(this.packageName).then(latestVersion => {
-			return {
-				latest: latestVersion,
-				current: this.packageVersion,
-				type: semverDiff()(this.packageVersion, latestVersion) || 'latest',
-				name: this.packageName
-			};
-		});
-	}
+
+    async checkLatest(){
+	    let latestVersion;
+        try {
+            latestVersion = await this.repoChecks[this.repoType]();
+        } catch(e){
+            if(e instanceof TypeError){
+                return console.error('could not find repo check for ' + this.repoType);
+            }
+            throw e;
+        }
+        return {
+            latest: latestVersion,
+            current: this.packageVersion,
+            type: semverDiff()(this.packageVersion, latestVersion) || 'latest',
+            name: this.packageName
+        };
+    }
+
 	notify(opts) {
 		const suppressForNpm = !this.shouldNotifyInNpmScript && isNpm();
 		if (!process.stdout.isTTY || suppressForNpm || !this.update) {
